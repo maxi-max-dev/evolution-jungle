@@ -54,3 +54,20 @@ test('completing the task updates the profile', () => {
   assert.equal(after.dimensions.evidence.level, 'medium');
   assert.equal(after.next_step.status, 'completed');
 });
+
+test('every run keeps both signals in season 2 and the same night routing', () => {
+  assert.equal(DATA.runs.length, 3);
+  DATA.runs.forEach((seasons) => {
+    const p = P.computeProfile(pathA, seasons, { answer: 'rise', pickedLowest: true }, false);
+    assert.equal(p.species, 'elephant');
+    assert.equal(p.dimensions.evidence.level, 'high');
+  });
+  assert.ok(DATA.runs.some((r) => r[1].outcome.river > 0), 'season 2 bad news can be false');
+});
+
+test('nest guesses are recorded but never score calibration', () => {
+  const recs = pathA.map((r) => ({ ...r, guess: 'up' }));
+  const c = P.computeProfile(recs, DATA.seasons, null, false).dimensions.calibration;
+  assert.equal(c.level, 'unknown');
+  assert.ok(c.observations[0].includes('空猜 3 次'));
+});

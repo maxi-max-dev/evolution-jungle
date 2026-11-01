@@ -47,7 +47,13 @@
       else if (!right) { matched++; obs.push(`第 ${i + 1} 季轻押，方向也错，投入与把握相称`); }
     });
     if (!matched && !unmatched) {
-      return { level: 'unknown', confidence: 'low', observations: ['几乎没有下注，无法判断校准'], matched, unmatched };
+      const guesses = records.map((r, i) => ({ g: r.guess, target: seasons[i].event.target, i })).filter((x) => x.g);
+      const right = guesses.filter((x) => x.g !== 'unsure' && (x.g === 'up') === (seasons[x.i].outcome[x.target] > 0)).length;
+      const unsure = guesses.filter((x) => x.g === 'unsure').length;
+      const note = guesses.length
+        ? `没怎么下注；空猜 ${guesses.length} 次，猜对 ${right} 次，说不准 ${unsure} 次（样本太小，不计分）`
+        : '几乎没有下注，无法判断校准';
+      return { level: 'unknown', confidence: 'low', observations: [note], matched, unmatched };
     }
     const rate = matched / (matched + unmatched);
     return {
@@ -58,6 +64,15 @@
   }
 
   function updating(records) {
+    const r = updatingCore(records);
+    const NAME = { retreat: '撤回', hold: '坚持', double: '加码' };
+    records.forEach((rec, i) => {
+      if (i !== 1 && rec.eventAction) r.observations.push(`第 ${i + 1} 季听到消息后选择${NAME[rec.eventAction]}（仅记录，不计分）`);
+    });
+    return r;
+  }
+
+  function updatingCore(records) {
     const a = records[1] && records[1].eventAction;
     if (a === 'retreat') return { level: 'high', confidence: 'low', observations: ['第 2 季听到坏消息后撤回了河谷的食物'], action: a };
     if (a === 'hold') return { level: 'medium', confidence: 'low', observations: ['第 2 季听到坏消息后没有调整'], action: a };
