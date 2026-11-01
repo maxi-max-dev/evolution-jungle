@@ -16,7 +16,7 @@
   let s;
   function reset() {
     s = { pop: 100, i: 0, records: [], scouts: [], stamina: 3, alloc: { river: 0, mountain: 0, nest: 10 },
-      traits: [], night: null, nightAnswer: null, taskDone: false, newTrait: null, openTrait: null };
+      traits: [], night: null, nightAnswer: null, taskDone: false, newTraits: [], openTrait: null };
   }
   const season = () => D.seasons[s.i];
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -25,12 +25,12 @@
   function grow(id, label, why) {
     if (has(id)) return;
     s.traits.push({ id, label, why });
-    s.newTrait = id;
+    s.newTraits.push(id);
   }
 
   function critter(colorOverride) {
     const c = colorOverride || '#9db86a';
-    const g = (id, body) => has(id) ? `<g class="${s.newTrait === id ? 'grow' : ''}">${body}</g>` : '';
+    const g = (id, body) => has(id) ? `<g class="${s.newTraits.includes(id) ? 'grow' : ''}">${body}</g>` : '';
     const big = has('eyes');
     return `<svg viewBox="0 0 120 100" role="img" aria-label="你的生物，已长出 ${s.traits.length} 个特征">
       ${g('ears', `<path d="M38 34 L28 4 L52 26 Z M82 34 L92 4 L68 26 Z" fill="${c}"/>`)}
@@ -60,7 +60,7 @@
       return opts.tap ? `<button data-bar="${i}" data-testid="bar-${opts.cls ? 'v' : ''}${i}" aria-label="第 ${i + 1} 根">${h}</button>` : h;
     }).join('')}</div>`;
   };
-  function render(html) { app.innerHTML = html; window.scrollTo(0, 0); s.newTrait = null; }
+  function render(html) { app.innerHTML = html; window.scrollTo(0, 0); s.newTraits = []; }
   function on(sel, fn) { app.querySelectorAll(sel).forEach((el) => el.addEventListener('click', () => fn(el))); }
 
   // —— 开场 ——
@@ -139,13 +139,13 @@
     const before = s.pop;
     s.pop = Math.max(10, s.pop + delta);
     seasonTraits();
-    const grown = s.traits.find((t) => t.id === s.newTrait);
+    const grown = s.traits.filter((t) => s.newTraits.includes(t.id));
     const weather = se.outcome.weather;
     const stayed = s.allocBefore.nest >= P.NEST_WATCH;
     render(`<div class="hud"><span>第 ${s.i + 1} / 3 季 · 结算</span><span class="pop" data-testid="population">族群 ${before}</span></div>
       ${scene(weather, weather === 'storm' ? 110 : 60)}
       <h2 id="settle-title">……</h2><div id="settle-rest"></div>`);
-    const newTraitHtml = grown ? `<div class="card" data-testid="grown"><strong>它长出了${grown.label}！</strong><p class="muted">${grown.why}</p></div>`
+    const newTraitHtml = grown.length ? grown.map((g) => `<div class="card" data-testid="grown"><strong>它长出了${g.label}！</strong><p class="muted">${g.why}</p></div>`).join('')
       : `<p class="muted">${stayed ? '它缩在巢里，这一季没有变化。' : '它这一季没长出新东西。'}</p>`;
     setTimeout(() => {
       app.querySelector('#settle-title').textContent = se.outcome.text;
@@ -189,6 +189,7 @@
       <div class="card"><p>“那你指给我看，这段日子水位最低的是哪天？”</p>
       ${bars(D.nightChart.values, { tap: true })}</div>`);
     on('[data-bar]', (el) => {
+      if (s.night) return; // 只认第一次点击，否则连点能把指错改成指对
       const pickedLowest = Number(el.dataset.bar) === D.nightChart.lowest;
       s.night = { answer: s.nightAnswer, pickedLowest };
       if (s.nightAnswer === 'vague') grow('antenna', '一对好奇的触角', '巢穴夜谈，你老实说了看不懂。这是学习的开始。');
